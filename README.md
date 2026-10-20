@@ -22,6 +22,5 @@ The title, date range, branch list, charts and action list all update from the C
 ## Notes
 
 - Works for any brand with the same export format (columns: Merchant, Grab Service, Date, Offline Time (minutes), Scheduled Open Time (minutes), Offline Rate (%)).
-- "Open another week's CSV" loads any export in the browser without uploading it (handy for comparing weeks or other brands).
-- Opening `index.html` directly from your computer can't read `data/` (browser security); use the button or drag the CSV onto the page.
+- Opening `index.html` directly from your computer can't read `data/` (browser security); drag the CSV onto the page.
 - Status rules: Chronic = in the report on 5+ days at 85%+ offline rate; Schedule glitch = every scheduled slot is 5 minutes or less; Occasional = everything else.

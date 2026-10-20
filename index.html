@@ -74,13 +74,11 @@ td.act { min-width:16rem; color:var(--text2); }
 
   <div class="loadbar">
     <span id="source">Source: data/offline_hours.csv</span>
-    <label class="btn" for="file">Open another week's CSV</label>
-    <input id="file" type="file" accept=".csv,text/csv" hidden>
   </div>
 
   <div id="drop" class="drop" hidden>
     <p><strong>Couldn't find data/offline_hours.csv.</strong></p>
-    <p>Drop the "Store Offline Hours" CSV from the Grab Merchant portal here, or use the button above.</p>
+    <p>Drop the "Store Offline Hours" CSV from the Grab Merchant portal onto this page.</p>
   </div>
 
   <main id="main" hidden style="display:grid; gap:20px">
@@ -210,7 +208,7 @@ td.act { min-width:16rem; color:var(--text2); }
 
   function drawBranches(el, data) {
     el.querySelectorAll('svg').forEach(n => n.remove());
-    const W = el.clientWidth || 320, bh = 16, gap = 6, rm = 44;
+    const W = el.clientWidth || 320, bh = window.__compact ? 12 : 16, gap = window.__compact ? 4 : 6, rm = 44;
     const H = 8 + data.length * (bh + gap);
     const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
     const lab = svg.append('g').selectAll('text').data(data).join('text').attr('font-size', 11).attr('fill', '#0c1846').text(d => d.label);
@@ -296,7 +294,7 @@ td.act { min-width:16rem; color:var(--text2); }
   }
   function readFile(f) { if (!f) return; const r = new FileReader(); r.onload = () => loadText(r.result, f.name); r.readAsText(f); }
 
-  document.getElementById('file').addEventListener('change', e => readFile(e.target.files[0]));
+  document.getElementById('file')?.addEventListener('change', e => readFile(e.target.files[0]));
   const drop = document.getElementById('drop');
   ['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
