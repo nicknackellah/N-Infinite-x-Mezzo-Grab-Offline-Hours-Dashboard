@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grab Offline Hours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Open+Sans:wght@300;400;600&family=Noto+Sans+Thai:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+:root {
+  --ni-navy:#0c1846; --ni-blue:#2b5d9f; --ni-blue-light:#c0e5ed; --ni-orange:#fe8761; --ni-coral-2:#d36440; --ni-teal:#63858c;
+  --bg:#f5f7fa; --surface:#ffffff; --border:#dde3ee; --text:#0c1846; --text2:#5a6480; --text3:#8a94b0;
+  --grad:linear-gradient(90deg,#081233,#0c1846,#2b5d9e,#3579c3);
+  --head:'Montserrat','Noto Sans Thai',system-ui,sans-serif;
+  --body:'Open Sans','Noto Sans Thai',system-ui,sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font-family:var(--body); font-size:14px; font-variant-numeric:tabular-nums; }
+.wrap { max-width:1200px; margin:0 auto; padding-block:20px 48px; padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px)); display:grid; gap:20px; }
+.band { background:var(--grad); color:#fff; border-radius:10px; padding:20px 24px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+.band img { width:104px; height:auto; flex:none; }
+.band > div { flex:1 1 18rem; min-width:0; }
+.tag { font-family:var(--head); font-weight:500; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ni-orange); margin:0 0 4px; }
+h1 { font-family:var(--head); font-weight:700; font-size:26px; margin:0; text-wrap:balance; }
+.lede { color:var(--ni-blue-light); margin:6px 0 0; max-width:75ch; line-height:1.5; }
+.loadbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:var(--text2); font-size:12px; }
+.btn { font:600 12px var(--body); color:var(--ni-blue); background:var(--surface); border:1px solid var(--ni-blue); border-radius:999px; padding:6px 14px; cursor:pointer; }
+.btn:hover { background:var(--ni-blue); color:#fff; }
+.btn:focus-visible { outline:2px solid var(--ni-orange); outline-offset:2px; }
+h2 { font-family:var(--head); font-weight:700; font-size:16px; margin:0; }
+h3 { font-family:var(--head); font-weight:700; font-size:14px; margin:0 0 6px; }
+.note { color:var(--text2); font-size:12px; margin:3px 0 12px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; min-width:0; }
+.tiles { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr)); }
+.tile { border-top:3px solid var(--ni-blue); }
+.tile.hot { border-top-color:var(--ni-orange); }
+.tile .lbl { color:var(--text2); font-size:12px; }
+.tile .big { font-family:var(--head); font-weight:700; font-size:28px; margin-top:6px; }
+.tile .sub { color:var(--text3); font-size:12px; margin-top:2px; }
+.grid2 { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr)); align-items:start; }
+.chart { position:relative; }
+.heat { position:relative; overflow-x:auto; }
+.tip { position:absolute; pointer-events:none; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 18px rgba(12,24,70,.15); padding:6px 10px; font-size:12px; white-space:nowrap; z-index:2; }
+.tip .k { color:var(--text2); }
+.tbl { overflow:auto; max-height:560px; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { position:sticky; top:0; background:var(--surface); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; user-select:none; white-space:nowrap; }
+th[aria-sort="ascending"]::after { content:" ▲"; } th[aria-sort="descending"]::after { content:" ▼"; }
+.num { text-align:right; white-space:nowrap; }
+td.act { min-width:16rem; color:var(--text2); }
+.pill { display:inline-block; padding:1px 9px; border-radius:999px; font-size:12px; border:1px solid currentColor; white-space:nowrap; }
+.p-bad { color:var(--ni-coral-2); } .p-warn { color:var(--ni-blue); } .p-ok { color:var(--ni-teal); }
+.plan { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr)); }
+.plan ul { margin:8px 0 0; padding-left:1.1rem; display:grid; gap:5px; line-height:1.45; }
+.drop { border:2px dashed var(--ni-blue); border-radius:10px; padding:40px 20px; text-align:center; color:var(--text2); background:var(--surface); }
+.drop.over { background:var(--ni-blue-light); }
+.foot { color:var(--text3); font-size:12px; }
+[hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="band">
+    <img alt="N-Infinite" src="data:image/png;base64,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">
+    <div>
+      <p class="tag">Empowering Restaurants · Grab store health</p>
+      <h1 id="title">Grab offline hours</h1>
+      <p class="lede" id="takeaway">Loading the latest Grab offline report…</p>
+    </div>
+  </header>
+
+  <div class="loadbar">
+    <span id="source">Source: data/offline_hours.csv</span>
+    <label class="btn" for="file">Open another week's CSV</label>
+    <input id="file" type="file" accept=".csv,text/csv" hidden>
+  </div>
+
+  <div id="drop" class="drop" hidden>
+    <p><strong>Couldn't find data/offline_hours.csv.</strong></p>
+    <p>Drop the "Store Offline Hours" CSV from the Grab Merchant portal here, or use the button above.</p>
+  </div>
+
+  <main id="main" hidden style="display:grid; gap:20px">
+    <section class="tiles">
+      <div class="card tile"><div class="lbl">Offline hours</div><div class="big" id="k-hours">—</div><div class="sub" id="k-range">Scheduled open time spent offline</div></div>
+      <div class="card tile hot"><div class="lbl">Chronic branches</div><div class="big" id="k-chronic">—</div><div class="sub">Offline the full shift on 5+ days</div></div>
+      <div class="card tile hot"><div class="lbl">Share from chronic branches</div><div class="big" id="k-share">—</div><div class="sub">Of all offline hours</div></div>
+      <div class="card tile"><div class="lbl">Avg offline per day</div><div class="big" id="k-perday">—</div><div class="sub">Hours across all branches</div></div>
+      <div class="card tile"><div class="lbl">Schedule-glitch branches</div><div class="big" id="k-glitch">—</div><div class="sub">Scheduled for 1–5 minutes only</div></div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <h2>Offline hours by day</h2>
+        <p class="note">All branches combined.</p>
+        <div class="chart" id="dayChart"></div>
+      </div>
+      <div class="card">
+        <h2>Offline hours by branch</h2>
+        <p class="note">All branches in the report. Orange = chronic, blue = other.</p>
+        <div class="chart" id="branchChart"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Offline rate by branch and day</h2>
+      <p class="note">Offline minutes ÷ scheduled open minutes. Blank = not in the report (online or not scheduled).</p>
+      <div class="heat" id="heat"></div>
+    </section>
+
+    <section class="card">
+      <h2>Branch action list</h2>
+      <p class="note">Sorted by offline hours. Click a column to sort.</p>
+      <div class="tbl">
+        <table id="tbl">
+          <thead><tr>
+            <th data-k="branch">Branch</th><th data-k="tier">Status</th>
+            <th class="num" data-k="days">Days offline</th><th class="num" data-k="hours">Offline hrs</th>
+            <th class="num" data-k="rate">Offline rate</th><th data-k="action">Next step</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2 style="margin-bottom:12px">Plan to cut offline hours</h2>
+      <div class="plan">
+        <div class="card"><h3><span class="pill p-bad">Chronic</span> Fix this week</h3>
+          <p class="note">These branches never opened on Grab during their scheduled hours.</p>
+          <ul>
+            <li>Call each branch manager: is the store trading, and is the Grab Merchant app or tablet switched on?</li>
+            <li>If the store is closed or not doing delivery, set it to temporarily closed or remove the hours so it stops counting as offline.</li>
+            <li>If it is trading, fix the device: dedicated tablet on charge, auto-accept on, logged in before opening.</li>
+            <li>Re-check next week's report; escalate any branch still dark to the brand owner.</li>
+          </ul></div>
+        <div class="card"><h3><span class="pill p-warn">Occasional</span> Find the cause</h3>
+          <p class="note">Full-day or partial outages on a few days.</p>
+          <ul>
+            <li>Ask why the store was dark on those dates (staff shortage, mall closure, device issue).</li>
+            <li>Add a daily opening checklist: open the Grab app at shop open and confirm it shows online.</li>
+            <li>Watch next week to confirm the fix holds.</li>
+          </ul></div>
+        <div class="card"><h3><span class="pill p-ok">Schedule glitch</span> Clean up hours</h3>
+          <p class="note">Stores scheduled for only 1–5 minutes, which shows as 100% offline.</p>
+          <ul>
+            <li>Review opening hours in the Grab Merchant portal for these branches.</li>
+            <li>Remove stray time slots, such as a shift ending one minute after midnight.</li>
+            <li>Small minutes, but they add avoidable offline flags to the store record.</li>
+          </ul></div>
+      </div>
+    </section>
+
+    <p class="foot">Lost sales are not estimated: this brand has no sales-per-hour baseline in N-Infinite's BigQuery tables. Status rules: Chronic = in the report on 5+ days at 85%+ offline rate; Schedule glitch = every scheduled slot is 5 minutes or less; Occasional = everything else.</p>
+  </main>
+</div>
+
+<script>
+(function () {
+  const COL = { m: 'Merchant', d: 'Date', off: 'Offline Time (minutes)', sch: 'Scheduled Open Time (minutes)', rate: 'Offline Rate (%)' };
+  const fmt1 = d3.format(',.1f'), pct = d3.format('.0%'), dlab = d3.utcFormat('%a %-d'), dlong = d3.utcFormat('%-d %b %Y');
+  const parseDate = s => { const [d, m, y] = String(s).trim().split('/').map(Number); return new Date(Date.UTC(y < 100 ? 2000 + y : y, m - 1, d)); };
+  const brandOf = m => String(m).split(' - ')[0].replace(/\s*\(.*\)\s*/, '').trim();
+  const branchOf = m => { const p = String(m).split(' - '); return p.length > 1 ? p.slice(1).join(' - ') : p[0]; };
+  let state = { branches: [], sortKey: 'hours', sortDir: -1 };
+
+  function analyse(rows) {
+    rows = rows.filter(r => r[COL.m] && r[COL.d]).map(r => ({ m: r[COL.m].trim(), d: r[COL.d].trim(), date: parseDate(r[COL.d]), off: +r[COL.off] || 0, sch: +r[COL.sch] || 0, rate: +r[COL.rate] || 0 }));
+    const brands = [...new Set(rows.map(r => brandOf(r.m)))];
+    const g = d3.group(rows, r => r.m);
+    const branches = [...g].map(([m, rs]) => {
+      const off = d3.sum(rs, r => r.off), sch = d3.sum(rs, r => r.sch), days = new Set(rs.map(r => r.d)).size, maxSch = d3.max(rs, r => r.sch);
+      const rate = sch ? off / sch : 0;
+      const tier = maxSch <= 5 ? 'Schedule glitch' : (days >= 5 && rate >= 0.85 ? 'Chronic' : 'Occasional');
+      const action = tier === 'Chronic' ? 'Call manager today: confirm trading status, then fix device or set store closed.'
+        : tier === 'Schedule glitch' ? 'Fix opening hours in Merchant portal (stray 1–5 min slot).'
+        : 'Ask cause of outage; add opening checklist.';
+      const label = (brands.length > 1 ? brandOf(m).split(' ')[0] + ' · ' : '') + branchOf(m);
+      return { m, label, short: branchOf(m), tier, days, off, hours: off / 60, rate, action };
+    }).sort((a, b) => b.off - a.off);
+    const byDay = d3.rollups(rows, v => d3.sum(v, r => r.off) / 60, r => +r.date).map(([t, h]) => ({ date: new Date(t), hours: h })).sort((a, b) => a.date - b.date);
+    return { rows, brands, branches, byDay };
+  }
+
+  const fit = (sel, max) => sel.each(function () { const full = this.textContent; let s = full; while (s.length > 4 && this.getComputedTextLength() > max) { s = s.slice(0, -1); this.textContent = s + '…'; } if (s !== full) d3.select(this).append('title').text(full); });
+  const hrsLabel = h => h < 1 ? Math.round(h * 60) + ' min' : fmt1(h);
+  const tip = el => { let t = el.querySelector('.tip'); if (!t) { t = document.createElement('div'); t.className = 'tip'; t.hidden = true; el.appendChild(t); } return t; };
+  function showTip(el, t, ev, lines) {
+    t.innerHTML = ''; lines.forEach((l, i) => { const d = document.createElement('div'); if (i === 0) d.className = 'k'; d.textContent = l; t.appendChild(d); });
+    t.hidden = false; const [x, y] = d3.pointer(ev, el);
+    t.style.left = Math.max(0, Math.min(el.scrollWidth - t.offsetWidth, x + 12)) + 'px'; t.style.top = Math.max(0, y - 44) + 'px';
+  }
+
+  function drawDaily(el, data) {
+    el.querySelectorAll('svg').forEach(n => n.remove());
+    const W = el.clientWidth || 320, H = 230, m = { t: 16, r: 8, b: 26, l: 40 };
+    const x = d3.scaleBand(data.map(d => +d.date), [m.l, W - m.r]).padding(0.3);
+    const y = d3.scaleLinear([0, (d3.max(data, d => d.hours) || 1) * 1.1], [H - m.b, m.t]).nice();
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', '#e6ebf3');
+    svg.append('g').selectAll('text').data(y.ticks(4)).join('text').attr('x', m.l - 6).attr('y', y).attr('dy', '.32em').attr('text-anchor', 'end').attr('fill', '#5a6480').attr('font-size', 11).text(d3.format(','));
+    const t = tip(el);
+    svg.append('g').selectAll('rect').data(data).join('rect').attr('x', d => x(+d.date)).attr('width', x.bandwidth()).attr('y', d => y(d.hours)).attr('height', d => y(0) - y(d.hours)).attr('rx', 4).attr('fill', '#2b5d9f')
+      .on('mousemove', (ev, d) => showTip(el, t, ev, [dlong(d.date), fmt1(d.hours) + ' offline hrs'])).on('mouseleave', () => t.hidden = true);
+    svg.append('g').selectAll('text').data(data).join('text').attr('x', d => x(+d.date) + x.bandwidth() / 2).attr('y', H - 8).attr('text-anchor', 'middle').attr('fill', '#5a6480').attr('font-size', 11).text(d => dlab(d.date));
+  }
+
+  function drawBranches(el, data) {
+    el.querySelectorAll('svg').forEach(n => n.remove());
+    const W = el.clientWidth || 320, bh = 16, gap = 6, rm = 44;
+    const H = 8 + data.length * (bh + gap);
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const lab = svg.append('g').selectAll('text').data(data).join('text').attr('font-size', 11).attr('fill', '#0c1846').text(d => d.label);
+    fit(lab, W * 0.45); let lw = 0; lab.each(function () { lw = Math.max(lw, this.getComputedTextLength()); });
+    const x = d3.scaleLinear([0, d3.max(data, d => d.hours) || 1], [lw + 10, W - rm]);
+    lab.attr('x', lw + 4).attr('text-anchor', 'end').attr('y', (d, i) => 4 + i * (bh + gap) + bh / 2).attr('dy', '.32em');
+    const t = tip(el);
+    svg.append('g').selectAll('rect').data(data).join('rect').attr('x', x(0)).attr('y', (d, i) => 4 + i * (bh + gap)).attr('height', bh).attr('width', d => Math.max(2, x(d.hours) - x(0))).attr('rx', 4)
+      .attr('fill', d => d.tier === 'Chronic' ? '#fe8761' : '#2b5d9f')
+      .on('mousemove', (ev, d) => showTip(el, t, ev, [d.label, `${hrsLabel(d.hours)}${d.hours < 1 ? '' : ' hrs'} · ${d.days} days · ${d.tier}`])).on('mouseleave', () => t.hidden = true);
+    svg.append('g').selectAll('text').data(data).join('text').attr('x', d => x(d.hours) + 4).attr('y', (d, i) => 4 + i * (bh + gap) + bh / 2).attr('dy', '.32em').attr('font-size', 11).attr('fill', '#5a6480').text(d => hrsLabel(d.hours));
+  }
+
+  function drawHeat(el, a) {
+    el.querySelectorAll('svg').forEach(n => n.remove());
+    const days = [...new Set(a.rows.map(r => +r.date))].sort((p, q) => p - q);
+    const cell = new Map(a.rows.map(r => [r.m + '|' + +r.date, r]));
+    const W = Math.max(el.clientWidth || 320, 560), rh = 20, top = 20;
+    const svg = d3.select(el).append('svg').attr('width', W).attr('height', top + a.branches.length * rh + 4).attr('viewBox', `0 0 ${W} ${top + a.branches.length * rh + 4}`);
+    const lab = svg.append('g').selectAll('text').data(a.branches).join('text').attr('font-size', 11).attr('fill', '#0c1846').text(d => d.label);
+    fit(lab, W * 0.42); let lw = 0; lab.each(function () { lw = Math.max(lw, this.getComputedTextLength()); });
+    const x = d3.scaleBand(days, [lw + 10, W]).padding(0.08);
+    lab.attr('x', lw + 4).attr('text-anchor', 'end').attr('y', (d, i) => top + i * rh + rh / 2).attr('dy', '.32em');
+    svg.append('g').selectAll('text').data(days).join('text').attr('x', d => x(d) + x.bandwidth() / 2).attr('y', 12).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#5a6480').text(d => dlab(new Date(d)));
+    const ramp = d3.interpolateRgb('#c0e5ed', '#fe8761'), t = tip(el), cells = [];
+    a.branches.forEach((b, i) => days.forEach(d => cells.push({ i, d, b, r: cell.get(b.m + '|' + d) })));
+    svg.append('g').selectAll('rect').data(cells).join('rect').attr('x', c => x(c.d)).attr('y', c => top + c.i * rh + 1).attr('width', x.bandwidth()).attr('height', rh - 2).attr('rx', 3)
+      .attr('fill', c => c.r ? ramp(0.25 + 0.75 * c.r.rate / 100) : '#ffffff').attr('stroke', '#dde3ee')
+      .on('mousemove', (ev, c) => showTip(el, t, ev, [c.b.label + ' · ' + dlong(new Date(c.d)), c.r ? `${c.r.off} of ${c.r.sch} min offline (${c.r.rate}%)` : 'Not in report']))
+      .on('mouseleave', () => t.hidden = true);
+  }
+
+  function fillTable() {
+    const k = state.sortKey, dir = state.sortDir;
+    const rows = [...state.branches].sort((a, b) => { const va = k === 'branch' ? a.label : a[k], vb = k === 'branch' ? b.label : b[k]; return (va > vb ? 1 : va < vb ? -1 : 0) * dir; });
+    document.querySelectorAll('#tbl th').forEach(th => th.setAttribute('aria-sort', th.dataset.k === k ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+    const tb = document.querySelector('#tbl tbody'); tb.innerHTML = '';
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const td = (txt, cls) => { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = txt; tr.appendChild(c); };
+      td(r.label);
+      const s = document.createElement('td'), p = document.createElement('span');
+      p.className = 'pill ' + (r.tier === 'Chronic' ? 'p-bad' : r.tier === 'Occasional' ? 'p-warn' : 'p-ok'); p.textContent = r.tier; s.appendChild(p); tr.appendChild(s);
+      td(String(r.days), 'num'); td(hrsLabel(r.hours), 'num'); td(pct(r.rate), 'num'); td(r.action, 'act');
+      tb.appendChild(tr);
+    }
+  }
+  document.querySelectorAll('#tbl th').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.k; state.sortDir = state.sortKey === k ? -state.sortDir : (k === 'branch' || k === 'tier' || k === 'action' ? 1 : -1); state.sortKey = k; fillTable();
+  }));
+
+  let current = null;
+  function render(a) {
+    current = a; state.branches = a.branches;
+    const tot = d3.sum(a.branches, b => b.off), chronic = a.branches.filter(b => b.tier === 'Chronic');
+    const share = tot ? d3.sum(chronic, b => b.off) / tot : 0, glitch = a.branches.filter(b => b.tier === 'Schedule glitch').length;
+    const first = a.byDay[0]?.date, last = a.byDay[a.byDay.length - 1]?.date;
+    const range = first ? `${dlong(first)} – ${dlong(last)}` : '';
+    const brand = a.brands.length === 1 ? a.brands[0] : a.brands.join(' / ');
+    document.title = `${brand} Grab Offline Hours`;
+    document.getElementById('title').textContent = `${brand} Grab offline hours, ${range}`;
+    document.getElementById('k-hours').textContent = fmt1(tot / 60);
+    document.getElementById('k-range').textContent = `${a.byDay.length} days · ${a.branches.length} branches`;
+    document.getElementById('k-chronic').textContent = chronic.length;
+    document.getElementById('k-share').textContent = d3.format('.1%')(share);
+    document.getElementById('k-perday').textContent = fmt1(tot / 60 / Math.max(1, a.byDay.length));
+    document.getElementById('k-glitch').textContent = glitch;
+    document.getElementById('takeaway').textContent = chronic.length
+      ? `${chronic.length} branches were offline on Grab for their whole shift almost every day and account for ${d3.format('.0%')(share)} of the ${fmt1(tot / 60)} offline hours. Confirm whether they are trading, then fix the device or close the listing.`
+      : `No branch was offline all week. ${fmt1(tot / 60)} offline hours across ${a.branches.length} branches; work through the action list below.`;
+    document.getElementById('drop').hidden = true; document.getElementById('main').hidden = false;
+    drawDaily(document.getElementById('dayChart'), a.byDay);
+    drawBranches(document.getElementById('branchChart'), a.branches);
+    drawHeat(document.getElementById('heat'), a);
+    fillTable();
+  }
+
+  function loadText(text, name) {
+    const rows = d3.csvParse(text.replace(/^﻿/, ''));
+    if (!rows.columns.includes(COL.m) || !rows.columns.includes(COL.off)) { alert('This file does not look like a Grab "Store Offline Hours" export.'); return; }
+    document.getElementById('source').textContent = 'Source: ' + name;
+    render(analyse(rows));
+  }
+  function readFile(f) { if (!f) return; const r = new FileReader(); r.onload = () => loadText(r.result, f.name); r.readAsText(f); }
+
+  document.getElementById('file').addEventListener('change', e => readFile(e.target.files[0]));
+  const drop = document.getElementById('drop');
+  ['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  document.addEventListener('drop', e => readFile(e.dataTransfer.files[0]));
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => current && render(current), 150); });
+
+  fetch('data/offline_hours.csv', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then(t => loadText(t, 'data/offline_hours.csv'))
+    .catch(() => { document.getElementById('drop').hidden = false; document.getElementById('takeaway').textContent = 'Load a Grab "Store Offline Hours" CSV to see the report.'; });
+})();
+</script>
+</body>
+</html>
