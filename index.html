@@ -168,6 +168,7 @@ td.act { min-width:16rem; color:var(--text2); }
 
   function analyse(rows) {
     rows = rows.filter(r => r[COL.m] && r[COL.d]);
+    const allDates = [...new Set(rows.map(r => +parseDate(r[COL.d])))];
     const before = new Set(rows.map(r => r[COL.m].trim()));
     rows = rows.filter(r => !closed.has(r[COL.m].trim()));
     excluded = [...before].filter(m => closed.has(m)).length;
@@ -184,7 +185,8 @@ td.act { min-width:16rem; color:var(--text2); }
       const label = (brands.length > 1 ? brandOf(m).split(' ')[0] + ' · ' : '') + branchOf(m);
       return { m, label, short: branchOf(m), tier, days, off, hours: off / 60, rate, action };
     }).sort((a, b) => b.off - a.off);
-    const byDay = d3.rollups(rows, v => d3.sum(v, r => r.off) / 60, r => +r.date).map(([t, h]) => ({ date: new Date(t), hours: h })).sort((a, b) => a.date - b.date);
+    const hrsByDay = new Map(d3.rollups(rows, v => d3.sum(v, r => r.off) / 60, r => +r.date));
+    const byDay = allDates.map(t => ({ date: new Date(t), hours: hrsByDay.get(t) || 0 })).sort((a, b) => a.date - b.date);
     return { rows, brands, branches, byDay };
   }
 
