@@ -231,7 +231,7 @@ td.act { min-width:16rem; color:var(--text2); }
 
   function drawHeat(el, a) {
     el.querySelectorAll('svg').forEach(n => n.remove());
-    const days = [...new Set(a.rows.map(r => +r.date))].sort((p, q) => p - q);
+    const days = a.byDay.map(d => +d.date);
     const cell = new Map(a.rows.map(r => [r.m + '|' + +r.date, r]));
     const W = Math.max(el.clientWidth || 320, 560), rh = 20, top = 20;
     const svg = d3.select(el).append('svg').attr('width', W).attr('height', top + a.branches.length * rh + 4).attr('viewBox', `0 0 ${W} ${top + a.branches.length * rh + 4}`);
