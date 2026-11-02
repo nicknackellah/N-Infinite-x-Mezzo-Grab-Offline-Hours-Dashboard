@@ -273,7 +273,10 @@ td.act { min-width:16rem; color:var(--text2); }
     const tot = d3.sum(a.branches, b => b.off), chronic = a.branches.filter(b => b.tier === 'Chronic');
     const share = tot ? d3.sum(chronic, b => b.off) / tot : 0, glitch = a.branches.filter(b => b.tier === 'Schedule glitch').length;
     const first = a.byDay[0]?.date, last = a.byDay[a.byDay.length - 1]?.date;
-    const range = first ? `${dlong(first)} – ${dlong(last)}` : '';
+    // Report covers a Grab Monday–Sunday week; show the full week even if the last days have no rows.
+    const wkStart = first ? d3.utcMonday.floor(first) : null, wkEnd = wkStart ? d3.utcDay.offset(wkStart, 6) : null;
+    const dshort = d3.utcFormat('%-d %b');
+    const range = wkStart ? `${wkStart.getUTCFullYear() === wkEnd.getUTCFullYear() ? dshort(wkStart) : dlong(wkStart)} – ${dlong(wkEnd)}` : '';
     const brand = a.brands.length === 1 ? a.brands[0] : a.brands.join(' / ');
     document.title = `${brand} Grab Offline Hours`;
     document.getElementById('title').textContent = `${brand} Grab offline hours, ${range}`;
